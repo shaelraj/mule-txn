@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule 
+	xmlns:my-try-scope="http://www.mulesoft.org/schema/mule/my-try-scope"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:java="http://www.mulesoft.org/schema/mule/java"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/java http://www.mulesoft.org/schema/mule/java/current/mule-java.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/my-try-scope http://www.mulesoft.org/schema/mule/my-try-scope/current/mule-my-try-scope.xsd">
+	<flow name="cxf-error-flow" doc:id="74aa13bd-1823-434c-b33a-7cfb72748ffa" >
+		<ee:transform doc:name="Transform Message" doc:id="698dec64-a329-4640-911a-ef191a5fef05" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+ns soap http://schemas.xmlsoap.org/soap/envelope
+---
+{
+    body: {
+        soap#Fault: {
+            faultcode: "soap:Server",
+            faultstring: error.description,
+            detail : {
+            	systemEvent : {
+            		message : error.detailedDescription,
+            		event : error.failingComponent,
+            		date : now(),
+            		dateString : "TPS-" ++ now() as String {format :"EEE MMM dd HH:mm:ss ZZZ yyyy"}
+            	}
+            }
+        }
+    } write "application/xml"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="mule-hibernate" doc:id="209a6cc2-94d7-46b9-a1ad-87f938471f5d">
+		<scheduler doc:name="Scheduler" doc:id="28557b02-6809-4efc-8969-cef34b297717" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="5" timeUnit="MINUTES"/>
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Logger" doc:id="a197f4f3-de68-4473-ae6b-cbfdd31dcc15" message="@@@@@@@@@@@@@@@@@@@@@@@@@"/>
+		<!-- <java:invoke doc:name="Invoke" doc:id="b5eb4e2f-5e4a-46a9-acde-e8c99c052cf2" instance="oneForAllService" class="com.sample.services.OneForAllService" method="doProcess()"/> -->
+			<!-- <try doc:name="Try" doc:id="717f2ba4-40db-49aa-8eb3-66e62041f8c0" transactionalAction="BEGIN_OR_JOIN"> -->
+			<my-try-scope:my-try-scope doc:name="My try scope" doc:id="2f4548ef-3c88-4aa3-883f-47f6414f4820"  instance="executor">
+			<java:invoke doc:name="Invoke" doc:id="146488f6-0b3f-4ca3-9ddf-9983248c131f" instance="interceptor" class="com.sample.mule.MuleIntercepotor" method="executeMuleFlow(java.lang.Object,java.lang.String)">
+			<java:args><![CDATA[#[{
+	arg0 : "mule-hibernate",
+	arg1 : "mule-hibernate"
+}]]]></java:args>
+		</java:invoke>
+			<java:invoke doc:name="departmentService" doc:id="e3064583-852b-4938-9b81-64f29320dbb8" instance="departmentService" class="com.sample.services.DepartmentServiceImpl" method="createDepartment(java.lang.String)">
+			<java:args><![CDATA[#[{
+	arg0: "HR"
+}]]]></java:args>
+		</java:invoke>
+			<java:invoke doc:name="employeeService" doc:id="a4da69aa-06b7-4e8d-a836-9b24c652956f" instance="employeeService" class="com.sample.services.EmployeeServiceImpl" method="createEmployee(java.lang.String,java.lang.String,int,java.lang.Integer)">
+			<java:args><![CDATA[#[{
+	arg0: "Bipin",
+	arg1: "Kumar",
+	arg2: 1253,
+	arg3: payload as Number 
+}]]]></java:args>
+		</java:invoke>
+			<java:invoke doc:name="getAllDept" doc:id="fb2d5d54-066c-436c-bb32-e25e53f735e3" instance="departmentService" class="com.sample.services.DepartmentServiceImpl" method="getAllDept()" />
+			<flow-ref doc:name="Flow Reference" doc:id="a28e3278-9e35-43c7-a3da-9790cd87beb2" name="printFlow" />
+		</my-try-scope:my-try-scope>
+		<!-- </try> -->
+	</flow>
+	<!-- <sub-flow name="printFlow" doc:id="e12c06f2-861b-4cd3-a0dc-8377806df4d1" >
+	<logger level="INFO" doc:name="Logger" doc:id="bfdd326d-6c9c-4b3e-b1f1-38b0f6e492c6" message="$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" />
+			<java:invoke doc:name="employeeService" doc:id="905de52c-0f98-41ab-afa2-212bfe7c01bb" instance="employeeService" class="com.sample.services.EmployeeServiceImpl" method="printEmployee(java.util.List)">
+				<java:args><![CDATA[#[{
+	arg0: payload as Array {class: "java.util.ArrayList<com.sample.entity.Department>"} default null
+}]]]></java:args>
+			</java:invoke>
+	</sub-flow> -->
+	<flow name="printFlow" doc:id="a98fda0a-1314-42e8-9f20-bec9bec706d4" >
+			<logger level="INFO" doc:name="Logger" doc:id="c2cff666-3b9a-4fab-8d2e-93fbd1901e15" message="$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" />
+			<java:invoke doc:name="employeeService" doc:id="cd8fc3ba-b25b-40d0-ac50-7b0399884b64" instance="employeeService" class="com.sample.services.EmployeeServiceImpl" method="printEmployee(java.util.List)">
+				<java:args><![CDATA[#[{
+	arg0: payload as Array {class: "java.util.ArrayList<com.sample.entity.Department>"} default null
+}]]]></java:args>
+			</java:invoke>
+	</flow>
+
+	<!-- <flow name="mule-sampleFlow"
+		doc:id="6217f4e0-803d-4cd9-924a-0efe5cd4c3f8">
+		<scheduler doc:name="Scheduler"
+			doc:id="78f8767a-2674-4bc1-a396-b90bad79539d">
+			<scheduling-strategy>
+				<fixed-frequency />
+			</scheduling-strategy>
+		</scheduler>
+		<logger level="INFO" doc:name="Logger"
+			doc:id="11518207-16d6-47ce-8496-333d6be0dd2f"
+			message="hello World !!!!" />
+			<set-variable variableName="var1" value="var1"/>
+<set-variable variableName="var2" value="var2"/>
+<set-payload doc:name="Set Payload" doc:id="955c15be-017a-41bd-a897-1aac57e95913" value="#[['apple','banana', 'dragon fruit']]"/>
+		<set-variable value="#[{&#10;	mule_correlation_group_size : sizeOf(payload)&#10;}]" doc:name="Set Variable" doc:id="7a29a0c1-8be6-4d7d-a204-d6c9459b2615" variableName="tpsVariablesMap"/>
+		<foreach collection="#[payload default []]">
+    <set-variable value="#[{&#10;	mule_correlation_sequence : (itemSequenceInfo.position as Number) + 1,&#10;	data : itemSequenceInfo.sequenceSize,&#10;	mule_correlation_group_size: vars.tpsVariablesMap.mule_correlation_group_size&#10;}]" doc:name="Set Variable" doc:id="20f7ec37-8590-4e99-be22-2bace85797e6" variableName="tpsVariablesMap"/>
+			<logger level="INFO" doc:name="Logger" doc:id="5eae86f8-d11a-489a-bd01-a00ebc939420" message="#[vars.tpsVariablesMap.mule_correlation_sequence]"/>
+			<choice>
+        <when expression="#[payload == 'apple']">
+            <set-variable variableName="var2" value="newValue"/>
+            <set-variable variableName="var3" value="appleVal"/>
+        </when>
+        <when expression="#[payload == 'banana']">
+            <set-variable variableName="var3" value="#[vars.var3 ++ ' bananaVal']"/>
+            var3 will now have value 'appleVal bananaVal'
+        </when>
+        <otherwise>
+            <set-variable variableName="var3" value="otherVal"/>
+            <set-variable variableName="var4" value="val4"/>
+        </otherwise>
+    </choice>
+</foreach> -->
+		<!-- <java:invoke doc:name="Invoke"
+			doc:id="185f4d87-5db9-4d62-a369-ae3459f7c092" instance="sampleClass"
+			class="com.sample.SampleClass" method="printValue()" />
+		<flow-ref doc:name="step2-flow" doc:id="a3c56a2e-f5b6-4321-9140-bfb733252e53" name="step2-flow"/> -->
+	<!-- </flow> -->
+	<!-- <flow name="step2-flow"
+		doc:id="b908199c-dcf7-478f-9126-7bb0006fc803">
+		<java:invoke doc:name="Invoke"
+			doc:id="f02f0c3c-6e46-4325-b19f-3ce6ec545ef0" instance="sampleClass"
+			class="com.sample.SampleClass" method="printValue2()" />
+		<logger level="INFO" doc:name="Logger" doc:id="403d8d22-48ff-4ac2-b1b6-ea1ed280f4a1" message="Second flow called"/>
+	</flow> -->
+</mule>

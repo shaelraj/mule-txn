@@ -1,0 +1,141 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context-4.1.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.1.xsd
+        http://www.springframework.org/schema/aop 
+   http://www.springframework.org/schema/aop/spring-aop-4.1.xsd">
+
+	<!-- Enable Annotation based Declarative Transaction Management -->
+	<context:annotation-config />
+	<context:component-scan
+		base-package="com.sample"></context:component-scan>
+	<tx:annotation-driven
+		transaction-manager="transactionManager" />
+
+	<aop:config>
+		<aop:pointcut id="register"
+			expression="execution(* com.javamonks.common.SimpleExecutor.*(..))" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="register" />
+	</aop:config>
+	
+	<aop:config>
+		<aop:pointcut id="interceptorMule"
+			expression="execution(* com.sample.SampleClass.*(..))" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="interceptorMule" />
+	</aop:config>
+
+	<tx:advice id="txAdvice"
+		transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="*" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+
+
+	<bean id="dataSource" class="com.zaxxer.hikari.HikariDataSource"
+		destroy-method="close">
+		<constructor-arg>
+			<bean class="com.zaxxer.hikari.HikariConfig">
+				<constructor-arg>
+					<props>
+						<prop key="driverClassName">org.h2.Driver</prop>
+						<prop key="jdbcUrl">jdbc:h2:mem:testdb</prop>
+						<prop key="username">sa</prop>
+						<prop key="password"></prop>
+						<prop key="connectionTestQuery">CALL NOW()</prop>
+					</props>
+				</constructor-arg>
+
+			</bean>
+		</constructor-arg>
+	</bean>
+
+	<bean id="sessionFactory"
+		class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocations">
+			<value>classpath:/hibernate.cfg.xml</value>
+		</property>
+		<property name="mappingResources">
+			<list>
+				<value>Department.hbm.xml</value>
+				<!-- <value>Employee.hbm.xml</value> -->
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.dialect">org.hibernate.dialect.H2Dialect</prop>
+				<prop key="hibernate.show_sql">true</prop>
+				<prop key="format_sql">true</prop>
+				<prop key="hibernate.hbm2ddl.auto">create</prop>
+				<prop key="hibernate.generate_statistics">true</prop>
+				<!-- <prop key="transaction.factory_class">org.springframework.transaction.jta.SimpleTransactionFactory</prop> -->
+			</props>
+		</property>
+
+	</bean>
+	<bean id="transactionManager"
+		class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	<bean id="deptDao" class="com.sample.dao.DepartmentDaoImpl">
+		<property name="sessionFactory">
+			<ref bean="sessionFactory" />
+		</property>
+	</bean>
+
+	<bean id="empDao" class="com.sample.dao.EmployeeDaoImpl">
+		<property name="sessionFactory">
+			<ref bean="sessionFactory" />
+		</property>
+	</bean>
+
+	<bean id="sampleClass" class="com.sample.SampleClass" />
+
+	<bean id="cxfErrorHandler" class="com.sample.CxfErrorHandler" />
+
+	<!-- <bean id="interceptor" class="com.sample.sample.MuleWrapperCustomeInterceptor"/> -->
+
+	<bean id="departmentService"
+		class="com.sample.services.DepartmentServiceImpl" />
+
+	<bean id="employeeService"
+		class="com.sample.services.EmployeeServiceImpl" />
+		
+	<!-- <bean id="txServiceProxy" abstract="true" class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+        <property name="transactionManager" ref="transactionManager" />
+        <property name="proxyTargetClass"><value>true</value></property>
+        <property name="transactionAttributes">
+             <props>
+                <prop key="create*">PROPAGATION_REQUIRED</prop>
+                <prop key="update*">PROPAGATION_REQUIRED</prop>
+                <prop key="get*">PROPAGATION_REQUIRED,readOnly</prop>
+                <prop key="*">PROPAGATION_REQUIRED</prop>
+            </props>
+        </property>
+    </bean>
+    <bean id="departmentServiceP" parent="txServiceProxy" scope="prototype">
+        <property name="target">
+            <ref bean="departmentService"/>
+        </property>
+    </bean>
+    
+     <bean id="employeeServiceP" parent="txServiceProxy" scope="prototype">
+        <property name="target">
+            <ref bean="employeeService"/>
+        </property>
+    </bean> -->
+
+	<bean id="interceptor"
+		class="com.sample.mule.MuleIntercepotor" />
+		
+		<bean id="executor" class="com.javamonks.common.SimpleExecutor"/>
+
+</beans>
